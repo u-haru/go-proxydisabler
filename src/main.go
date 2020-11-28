@@ -32,7 +32,9 @@ func HandleHttps(writer http.ResponseWriter, req *http.Request) {
 			log.Fatal(err)
 		}
 		req.Host = fmt.Sprintf("%s", addr.String())
-		req.Header.Set("Proxy-Authorization", proxyAuthorization)
+		if proxyUser != "" {
+			req.Header.Set("Proxy-Authorization", proxyAuthorization)
+		}
 		req.Write(proxyConn)
 		go func() {
 			io.Copy(clientConn, proxyConn)
@@ -77,7 +79,14 @@ func main() {
 	proxyHost = *_proxyHost
 
 	proxyAuthorization = "Basic " + base64.StdEncoding.EncodeToString([]byte(proxyUser))
-	proxyUrlString := fmt.Sprintf("http://%s@%s", strings.Replace(url.QueryEscape(proxyUser), "%3A", ":", 1), proxyHost)
+	proxyUrlString := ""
+
+	if proxyUser != "" {
+		proxyUrlString = fmt.Sprintf("http://%s@%s", strings.Replace(url.QueryEscape(proxyUser), "%3A", ":", 1), proxyHost)
+	} else {
+		proxyUrlString = fmt.Sprintf("http://%s", proxyHost)
+	}
+
 	proxyUrl, err := url.Parse(proxyUrlString)
 	if err != nil {
 		log.Fatal(err)
