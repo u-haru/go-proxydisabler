@@ -23,13 +23,13 @@ var (
 func HandleHttps(writer http.ResponseWriter, req *http.Request) {
 	hijacker, _ := writer.(http.Hijacker)
 	if proxyConn, err := net.Dial("tcp", proxyHost); err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	} else if clientConn, _, err := hijacker.Hijack(); err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	} else {
 		addr, err := net.ResolveIPAddr("ip4", req.URL.Hostname())
 		if err != nil {
-			log.Fatal(err)
+			log.Print(err)
 		}
 		req.Host = fmt.Sprintf("%s", addr.String())
 		if proxyUser != "" {
@@ -52,9 +52,9 @@ func HandleHttp(writer http.ResponseWriter, req *http.Request) {
 	client := new(http.Client)
 	req.RequestURI = ""
 	if resp, err := client.Do(req); err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	} else if conn, _, err := hijacker.Hijack(); err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	} else {
 		defer conn.Close()
 		resp.Write(conn)
@@ -95,7 +95,7 @@ func main() {
 	fmt.Println(proxyHost)
 	proxyhandler := http.HandlerFunc(HandleRequest)
 
-	listen := fmt.Sprintf("localhost:%d", port)
+	listen := fmt.Sprintf("0.0.0.0:%d", port)
 	log.Printf("Start serving on %s", listen)
 	log.Fatal(http.ListenAndServe(listen, proxyhandler))
 }
