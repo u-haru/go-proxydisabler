@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	port               = 8080
+	localHost          = "localhost:8080"
 	proxyHost          = ""
 	proxyUser          = ""
 	proxyPass          = ""
@@ -76,12 +76,12 @@ func HandleRequest(writer http.ResponseWriter, req *http.Request) {
 
 func main() {
 	_proxyUser := flag.String("u", "", "username:password")
-	_port := flag.Int("p", 8080, "local port")
+	_localHost := flag.String("p", "localhost:8080", "Proxy:port")
 	_proxyHost := flag.String("x", "10.1.16.8:8080", "Proxy:port")
 	_noProxy := flag.Bool("n", false, "NoProxy")
 	flag.Parse()
 	proxyUser = *_proxyUser
-	port = *_port
+	localHost = *_localHost
 	proxyHost = *_proxyHost
 	noProxy = *_noProxy
 
@@ -104,7 +104,6 @@ func main() {
 	}
 	proxyhandler := http.HandlerFunc(HandleRequest)
 
-	listen := fmt.Sprintf("0.0.0.0:%d", port)
-	log.Printf("Start serving on %s", listen)
-	log.Fatal(http.ListenAndServe(listen, proxyhandler))
+	log.Printf("Start serving on %s", localHost)
+	log.Fatal(http.ListenAndServe(localHost, proxyhandler))
 }
