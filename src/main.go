@@ -18,6 +18,7 @@ var (
 	proxyUser          = ""
 	proxyPass          = ""
 	proxyAuthorization = ""
+	noProxy            = false
 )
 
 func HandleHttps(writer http.ResponseWriter, req *http.Request) {
@@ -63,6 +64,10 @@ func HandleHttp(writer http.ResponseWriter, req *http.Request) {
 
 func HandleRequest(writer http.ResponseWriter, req *http.Request) {
 	if req.Method == "CONNECT" {
+		if noProxy == true {
+			http.Error(writer, "Not Supported", http.StatusNotFound)
+			return
+		}
 		HandleHttps(writer, req)
 	} else {
 		HandleHttp(writer, req)
@@ -73,10 +78,12 @@ func main() {
 	_proxyUser := flag.String("u", "", "username:password")
 	_port := flag.Int("p", 8080, "local port")
 	_proxyHost := flag.String("x", "10.1.16.8:8080", "Proxy:port")
+	_noProxy := flag.Bool("n", false, "NoProxy")
 	flag.Parse()
 	proxyUser = *_proxyUser
 	port = *_port
 	proxyHost = *_proxyHost
+	noProxy = *_noProxy
 
 	proxyAuthorization = "Basic " + base64.StdEncoding.EncodeToString([]byte(proxyUser))
 	proxyUrlString := ""
@@ -91,8 +98,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	http.DefaultTransport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
-	fmt.Println(proxyHost)
+	if noProxy == false {
+		http.DefaultTransport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
+		// fmt.Println(proxyHost)
+	}
 	proxyhandler := http.HandlerFunc(HandleRequest)
 
 	listen := fmt.Sprintf("0.0.0.0:%d", port)
