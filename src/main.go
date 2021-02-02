@@ -22,29 +22,50 @@ var (
 )
 
 func HandleHttps(writer http.ResponseWriter, req *http.Request) {
-	hijacker, _ := writer.(http.Hijacker)
-	if proxyConn, err := net.Dial("tcp", proxyHost); err != nil {
-		log.Print(err)
-	} else if clientConn, _, err := hijacker.Hijack(); err != nil {
-		log.Print(err)
+	if noProxy == false {
+		hijacker, _ := writer.(http.Hijacker)
+		if proxyConn, err := net.Dial("tcp", proxyHost); err != nil {
+			log.Print(err)
+		} else if clientConn, _, err := hijacker.Hijack(); err != nil {
+			log.Print(err)
+		} else {
+			addr, err := net.ResolveIPAddr("ip4", req.URL.Hostname())
+			if err != nil {
+				log.Print(err)
+			}
+			req.Host = fmt.Sprintf("%s", addr.String())
+			if proxyUser != "" {
+				req.Header.Set("Proxy-Authorization", proxyAuthorization)
+			}
+			req.Write(proxyConn)
+			go func() {
+				io.Copy(clientConn, proxyConn)
+				proxyConn.Close()
+			}()
+			go func() {
+				io.Copy(proxyConn, clientConn)
+				clientConn.Close()
+			}()
+		}
 	} else {
-		addr, err := net.ResolveIPAddr("ip4", req.URL.Hostname())
+		destConn, err := net.Dial("tcp", req.URL.Hostname()+":443")
 		if err != nil {
 			log.Print(err)
 		}
-		req.Host = fmt.Sprintf("%s", addr.String())
-		if proxyUser != "" {
-			req.Header.Set("Proxy-Authorization", proxyAuthorization)
+		writer.WriteHeader(200)
+
+		if clientConn, _, err := writer.(http.Hijacker).Hijack(); err != nil {
+			log.Print(err)
+		} else {
+			go func() {
+				io.Copy(clientConn, destConn)
+				destConn.Close()
+			}()
+			go func() {
+				io.Copy(destConn, clientConn)
+				clientConn.Close()
+			}()
 		}
-		req.Write(proxyConn)
-		go func() {
-			io.Copy(clientConn, proxyConn)
-			proxyConn.Close()
-		}()
-		go func() {
-			io.Copy(proxyConn, clientConn)
-			clientConn.Close()
-		}()
 	}
 }
 
@@ -65,8 +86,8 @@ func HandleHttp(writer http.ResponseWriter, req *http.Request) {
 func HandleRequest(writer http.ResponseWriter, req *http.Request) {
 	if req.Method == "CONNECT" {
 		if noProxy == true {
-			http.Error(writer, "Not Supported", http.StatusNotFound)
-			return
+			// http.Error(writer, "Not Supported", http.StatusNotFound)
+			// return
 		}
 		HandleHttps(writer, req)
 	} else {
