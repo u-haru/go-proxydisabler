@@ -5,9 +5,7 @@
 
 
 Usage:
-  -p int
-        local port (default 8080)
-  -u string
-        username:password
-  -x string
-        Proxy:port (default "10.1.16.8:8080")
+​	-n NoProxyMode
+​	-p listen_address:port (default "localhost:8080")
+​	-u username:password
+​	-x proxy_address:port (default "10.1.16.8:8080")
