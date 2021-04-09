@@ -99,7 +99,7 @@ func HandleRequest(writer http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func InitLocalServer() *http.Server {
+func InitLocalServer() {
 	if noProxy == false {
 		proxyUrlString := ""
 		if proxyUser != "" {
@@ -113,10 +113,11 @@ func InitLocalServer() *http.Server {
 		}
 		http.DefaultTransport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
 	}
-	return &http.Server{
+	srv = &http.Server{
 		Addr:    localHost,
 		Handler: http.HandlerFunc(HandleRequest),
 	}
+	proxyAuthorization = "Basic " + base64.StdEncoding.EncodeToString([]byte(proxyUser))
 }
 
 func StartServer() {
@@ -160,9 +161,8 @@ func main() {
 	localHost = *_localHost
 	proxyHost = *_proxyHost
 	noProxy = *_noProxy
-	proxyAuthorization = "Basic " + base64.StdEncoding.EncodeToString([]byte(proxyUser))
 
-	srv = InitLocalServer()
+	InitLocalServer()
 
 	StartServer()
 
