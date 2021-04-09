@@ -94,6 +94,24 @@ func HandleRequest(writer http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func InitLocalProxy() http.HandlerFunc {
+	proxyAuthorization = "Basic " + base64.StdEncoding.EncodeToString([]byte(proxyUser))
+	if noProxy == false {
+		proxyUrlString := ""
+		if proxyUser != "" {
+			proxyUrlString = fmt.Sprintf("http://%s@%s", proxyUser, proxyHost)
+		} else {
+			proxyUrlString = fmt.Sprintf("http://%s", proxyHost)
+		}
+		proxyUrl, err := url.Parse(proxyUrlString)
+		if err != nil {
+			log.Fatal(err)
+		}
+		http.DefaultTransport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
+	}
+	return http.HandlerFunc(HandleRequest)
+}
+
 func main() {
 	_proxyUser := flag.String("u", "", "username:password")
 	_localHost := flag.String("p", "localhost:8080", "Proxy:port")
@@ -105,24 +123,7 @@ func main() {
 	proxyHost = *_proxyHost
 	noProxy = *_noProxy
 
-	proxyAuthorization = "Basic " + base64.StdEncoding.EncodeToString([]byte(proxyUser))
-	proxyUrlString := ""
-
-	if proxyUser != "" {
-		proxyUrlString = fmt.Sprintf("http://%s@%s", proxyUser, proxyHost)
-	} else {
-		proxyUrlString = fmt.Sprintf("http://%s", proxyHost)
-	}
-
-	proxyUrl, err := url.Parse(proxyUrlString)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if noProxy == false {
-		http.DefaultTransport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
-		// fmt.Println(proxyHost)
-	}
-	proxyhandler := http.HandlerFunc(HandleRequest)
+	proxyhandler := InitLocalProxy()
 
 	log.Printf("Start serving on %s", localHost)
 	log.Fatal(http.ListenAndServe(localHost, proxyhandler))
