@@ -22,6 +22,7 @@ var (
 	proxyUser          = ""
 	proxyAuthorization = ""
 	noProxy            = false
+	srv                *http.Server
 )
 
 func HandleHttps(writer http.ResponseWriter, req *http.Request) {
@@ -118,7 +119,7 @@ func InitLocalServer() *http.Server {
 	}
 }
 
-func StartServer(srv *http.Server) {
+func StartServer() {
 	if noProxy == false {
 		proxyUrlString := ""
 		if proxyUser != "" {
@@ -140,7 +141,7 @@ func StartServer(srv *http.Server) {
 	log.Printf("Start serving on %s", localHost)
 }
 
-func StopServer(srv *http.Server) {
+func StopServer() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
@@ -161,13 +162,13 @@ func main() {
 	noProxy = *_noProxy
 	proxyAuthorization = "Basic " + base64.StdEncoding.EncodeToString([]byte(proxyUser))
 
-	srv := InitLocalServer()
+	srv = InitLocalServer()
 
-	StartServer(srv)
+	StartServer()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, os.Interrupt)
 	log.Printf("SIGNAL %d received, shutting down...\n", <-quit)
 
-	StopServer(srv)
+	StopServer()
 }
