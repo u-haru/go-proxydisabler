@@ -20,7 +20,6 @@ var (
 	localHost          = "localhost:8080"
 	proxyHost          = ""
 	proxyUser          = ""
-	proxyPass          = ""
 	proxyAuthorization = ""
 	noProxy            = false
 )
@@ -99,8 +98,7 @@ func HandleRequest(writer http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func InitLocalProxy() *http.Server {
-	proxyAuthorization = "Basic " + base64.StdEncoding.EncodeToString([]byte(proxyUser))
+func InitLocalServer() *http.Server {
 	if noProxy == false {
 		proxyUrlString := ""
 		if proxyUser != "" {
@@ -120,6 +118,37 @@ func InitLocalProxy() *http.Server {
 	}
 }
 
+func StartServer(srv *http.Server) {
+	if noProxy == false {
+		proxyUrlString := ""
+		if proxyUser != "" {
+			proxyUrlString = fmt.Sprintf("http://%s@%s", proxyUser, proxyHost)
+		} else {
+			proxyUrlString = fmt.Sprintf("http://%s", proxyHost)
+		}
+		proxyUrl, err := url.Parse(proxyUrlString)
+		if err != nil {
+			log.Fatal(err)
+		}
+		http.DefaultTransport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
+	}
+	go func() {
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			log.Fatal("Server closed with error:", err)
+		}
+	}()
+	log.Printf("Start serving on %s", localHost)
+}
+
+func StopServer(srv *http.Server) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Println("Failed to gracefully shutdown:", err)
+	}
+	log.Println("Server shutdown")
+}
+
 func main() {
 	_proxyUser := flag.String("u", "", "username:password")
 	_localHost := flag.String("p", "localhost:8080", "Proxy:port")
@@ -130,25 +159,15 @@ func main() {
 	localHost = *_localHost
 	proxyHost = *_proxyHost
 	noProxy = *_noProxy
+	proxyAuthorization = "Basic " + base64.StdEncoding.EncodeToString([]byte(proxyUser))
 
-	srv := InitLocalProxy()
+	srv := InitLocalServer()
 
-	log.Printf("Start serving on %s", localHost)
-
-	go func() {
-		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			log.Fatal("Server closed with error:", err)
-		}
-	}()
+	StartServer(srv)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, os.Interrupt)
 	log.Printf("SIGNAL %d received, shutting down...\n", <-quit)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Println("Failed to gracefully shutdown:", err)
-	}
-	log.Println("Server shutdown")
+	StopServer(srv)
 }
