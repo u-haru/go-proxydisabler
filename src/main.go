@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"flag"
 	"fmt"
@@ -9,6 +10,10 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 var (
@@ -94,7 +99,7 @@ func HandleRequest(writer http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func InitLocalProxy() http.HandlerFunc {
+func InitLocalProxy() *http.Server {
 	proxyAuthorization = "Basic " + base64.StdEncoding.EncodeToString([]byte(proxyUser))
 	if noProxy == false {
 		proxyUrlString := ""
@@ -109,7 +114,10 @@ func InitLocalProxy() http.HandlerFunc {
 		}
 		http.DefaultTransport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
 	}
-	return http.HandlerFunc(HandleRequest)
+	return &http.Server{
+		Addr:    localHost,
+		Handler: http.HandlerFunc(HandleRequest),
+	}
 }
 
 func main() {
@@ -123,8 +131,24 @@ func main() {
 	proxyHost = *_proxyHost
 	noProxy = *_noProxy
 
-	proxyhandler := InitLocalProxy()
+	srv := InitLocalProxy()
 
 	log.Printf("Start serving on %s", localHost)
-	log.Fatal(http.ListenAndServe(localHost, proxyhandler))
+
+	go func() {
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			log.Fatal("Server closed with error:", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGTERM, os.Interrupt)
+	log.Printf("SIGNAL %d received, shutting down...\n", <-quit)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Println("Failed to gracefully shutdown:", err)
+	}
+	log.Println("Server shutdown")
 }
