@@ -121,19 +121,6 @@ func InitLocalServer() {
 }
 
 func StartServer() {
-	if noProxy == false {
-		proxyUrlString := ""
-		if proxyUser != "" {
-			proxyUrlString = fmt.Sprintf("http://%s@%s", proxyUser, proxyHost)
-		} else {
-			proxyUrlString = fmt.Sprintf("http://%s", proxyHost)
-		}
-		proxyUrl, err := url.Parse(proxyUrlString)
-		if err != nil {
-			log.Fatal(err)
-		}
-		http.DefaultTransport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
-	}
 	go func() {
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 			log.Fatal("Server closed with error:", err)
