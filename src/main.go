@@ -90,10 +90,6 @@ func HandleHttp(writer http.ResponseWriter, req *http.Request) {
 
 func HandleRequest(writer http.ResponseWriter, req *http.Request) {
 	if req.Method == "CONNECT" {
-		if noProxy == true {
-			// http.Error(writer, "Not Supported", http.StatusNotFound)
-			// return
-		}
 		HandleHttps(writer, req)
 	} else {
 		HandleHttp(writer, req)
@@ -162,7 +158,6 @@ func SetFlag(flag *C.char, str *C.char) {
 		}
 		break
 	}
-	// fmt.Println(C.GoString(str))
 }
 
 func main() {
