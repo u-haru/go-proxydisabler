@@ -1,6 +1,7 @@
 package main
 
 import (
+	"C"
 	"context"
 	"encoding/base64"
 	"flag"
@@ -99,6 +100,7 @@ func HandleRequest(writer http.ResponseWriter, req *http.Request) {
 	}
 }
 
+//export InitLocalServer
 func InitLocalServer() {
 	if noProxy == false {
 		proxyUrlString := ""
@@ -120,6 +122,7 @@ func InitLocalServer() {
 	proxyAuthorization = "Basic " + base64.StdEncoding.EncodeToString([]byte(proxyUser))
 }
 
+//export StartServer
 func StartServer() {
 	go func() {
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
@@ -129,6 +132,7 @@ func StartServer() {
 	log.Printf("Start serving on %s", localHost)
 }
 
+//export StopServer
 func StopServer() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -136,6 +140,29 @@ func StopServer() {
 		log.Println("Failed to gracefully shutdown:", err)
 	}
 	log.Println("Server shutdown")
+}
+
+//export SetFlag
+func SetFlag(flag *C.char, str *C.char) {
+	switch C.GoString(flag) {
+	case "u":
+		proxyUser = C.GoString(str)
+		break
+	case "p":
+		localHost = C.GoString(str)
+		break
+	case "x":
+		proxyHost = C.GoString(str)
+		break
+	case "n":
+		if C.GoString(str) == "y" {
+			noProxy = true
+		} else {
+			noProxy = false
+		}
+		break
+	}
+	// fmt.Println(C.GoString(str))
 }
 
 func main() {
