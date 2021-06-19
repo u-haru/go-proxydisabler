@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -38,7 +39,7 @@ func HandleHttps(writer http.ResponseWriter, req *http.Request) {
 				log.Print(err)
 			}
 			req.Host = fmt.Sprintf("%s", addr.String())
-			if proxyUser != "" {
+			if proxyAuthorization != "" {
 				req.Header.Set("Proxy-Authorization", proxyAuthorization)
 			}
 			req.Write(proxyConn)
@@ -99,7 +100,7 @@ func InitLocalServer() {
 	if noProxy == false {
 		proxyUrlString := ""
 		if proxyUser != "" {
-			proxyUrlString = fmt.Sprintf("http://%s@%s", proxyUser, proxyHost)
+			proxyUrlString = fmt.Sprintf("http://%s@%s", strings.Replace(url.QueryEscape(proxyUser), "%3A", ":", 1), proxyHost)
 		} else {
 			proxyUrlString = fmt.Sprintf("http://%s", proxyHost)
 		}
@@ -135,15 +136,11 @@ func StopServer() {
 }
 
 func main() {
-	_proxyUser := flag.String("u", "", "username:password")
-	_localHost := flag.String("p", "localhost:8080", "Proxy:port")
-	_proxyHost := flag.String("x", "10.1.16.8:8080", "Proxy:port")
-	_noProxy := flag.Bool("n", false, "NoProxy")
+	flag.StringVar(&proxyUser, "u", "", "username:password")
+	flag.StringVar(&localHost, "p", "localhost:8080", "Proxy:port")
+	flag.StringVar(&proxyHost, "x", "10.1.16.8:8080", "Proxy:port")
+	flag.BoolVar(&noProxy, "n", false, "NoProxy")
 	flag.Parse()
-	proxyUser = *_proxyUser
-	localHost = *_localHost
-	proxyHost = *_proxyHost
-	noProxy = *_noProxy
 
 	InitLocalServer()
 
